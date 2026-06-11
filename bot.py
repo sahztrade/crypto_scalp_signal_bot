@@ -331,10 +331,10 @@ def format_signal(signal):
 ⚠️ این پیام توصیه مالی قطعی نیست. قبل از ورود، مدیریت سرمایه و شرایط بازار را بررسی کن.
 """
     def scan_market():
-    print("Scanning market...")
-    telegram_send("🔍 اسکن جدید بازار آغاز شد...")
+        print("Scanning market...")
+        telegram_send("🔍 اسکن جدید بازار آغاز شد...")
 
-    found = []
+        found = []
 
     for symbol in SYMBOLS:
         try:
