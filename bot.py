@@ -180,11 +180,13 @@ def btc_bias():
     e9 = ema(closes, 9)
     e21 = ema(closes, 21)
     e50 = ema(closes, 50)
+
     last = closes[-1]
 
     if e9 > e21 > e50 and last > e21:
         return "BULLISH"
-        if e9 < e21 < e50 and last < e21:
+
+    if e9 < e21 < e50 and last < e21:
         return "BEARISH"
 
     return "NEUTRAL"
