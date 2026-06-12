@@ -38,6 +38,7 @@ LBANK_BASE_URLS = [
 app = Flask(__name__)
 sent_signals = {}
 
+no_signal_count = 0
 
 @app.route("/")
 def home():
@@ -721,6 +722,8 @@ def format_signal(s):
 
 
 def scan_market():
+    global no_signal_count
+    
     log("SCAN STEP 1 - scan_market started")
 
     found = []
@@ -755,18 +758,33 @@ def scan_market():
     found.sort(key=lambda x: x["score"], reverse=True)
 
     if not found:
-        log("No strong signal found.")
-        log("SCAN FINISHED - no signal")
-        return
+               no_signal_count += 1
 
-    log(f"SCAN STEP 5 - sending {len(found[:3])} signals")
+               log(f"No signal count={no_signal_count}")
+               log("No strong signal found.")
 
-    for s in found[:3]:
+    if no_signal_count >= 12:
+               telegram_send(
+            "🤖 ربات فعال است\n\n"
+            "❌ در یک ساعت گذشته سیگنال معتبری پیدا نشد."
+        )
+             no_signal_count = 0
+
+    log("SCAN FINISHED - no signal")
+    return
+
+            no_signal_count = 0
+
+            for s in found[:3]:
         try:
+            log(f"SENDING {s['symbol']} {s['side']} SCORE={s['score']}")
+
             sent_signals[s["id"]] = time.time()
             telegram_send(format_signal(s))
+
             log(f"Signal sent: {s['symbol']} {s['side']}")
-        except Exception as e:
+
+    except Exception as e:
             log("Telegram send signal error:", e)
 
     cutoff = time.time() - 86400
