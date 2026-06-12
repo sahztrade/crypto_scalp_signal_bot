@@ -620,14 +620,15 @@ def analyze_symbol(symbol, btc_market_bias):
             target2 = entry - (risk * 2.5)
 
         log(symbol, f"SCORE={score} SIDE={side}")
-
-        if rr < 1.5:
-            return None
             
         if score < MIN_SCORE:
             return None
 
         rr = abs(target1 - entry) / abs(entry - stop)
+
+        if rr < 1.5:
+            return None
+        
         p = precision(entry)
 
         grade = "A+ ⭐⭐⭐⭐⭐" if score >= 6 else "A ⭐⭐⭐⭐"
