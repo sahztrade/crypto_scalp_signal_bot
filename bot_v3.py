@@ -768,13 +768,12 @@ def scan_market():
             "🤖 ربات فعال است\n\n"
             "❌ در یک ساعت گذشته سیگنال معتبری پیدا نشد."
         )
+    no_signal_count = 0
+    
+               log("SCAN FINISHED - no signal")
+               return
 
-    log("SCAN FINISHED - no signal")
-    return
-
-            no_signal_count = 0
-
-            for s in found[:3]:
+    for s in found[:3]:
         try:
             log(f"SENDING {s['symbol']} {s['side']} SCORE={s['score']}")
 
