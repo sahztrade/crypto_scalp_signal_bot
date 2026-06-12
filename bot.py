@@ -1,10 +1,5 @@
-import os
-import time
-import math
-import threading
+import os, time, threading, requests
 from datetime import datetime, timezone
-
-import requests
 from flask import Flask
 from apscheduler.schedulers.blocking import BlockingScheduler
 from dotenv import load_dotenv
@@ -14,103 +9,90 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-BINANCE_BASE_URLS = [
-    "https://data-api.binance.vision",
-    "https://api.binance.com",
-    "https://api1.binance.com",
-]
-
 SYMBOLS = [
-    "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT",
-    "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "TRXUSDT"
+    "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT",
+    "XRPUSDT", "ADAUSDT", "DOGEUSDT", "LINKUSDT",
+    "AVAXUSDT", "TRXUSDT"
 ]
 
 INTERVAL = os.getenv("INTERVAL", "5m")
 CHECK_MINUTES = int(os.getenv("CHECK_MINUTES", "5"))
-MAX_SIGNALS_PER_SCAN = int(os.getenv("MAX_SIGNALS_PER_SCAN", "3"))
-MIN_SCORE = int(os.getenv("MIN_SCORE", "3"))
+
+MIN_SCORE = 5
+MIN_RR = 1.8
+LONG_RSI_MIN = 58
+SHORT_RSI_MAX = 42
+VOLUME_RATIO_MIN = 1.30
 
 app = Flask(__name__)
 sent_signals = {}
 
-
-def now_utc_text():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
-
-def telegram_send(text):
-    if not BOT_TOKEN or not CHAT_ID:
-        print("BOT_TOKEN or CHAT_ID is missing.")
-        return
-
-    try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        response = requests.post(
-            url,
-            json={
-                "chat_id": CHAT_ID,
-                "text": text,
-                "disable_web_page_preview": True,
-            },
-            timeout=20,
-        )
-
-        if response.status_code != 200:
-            print("Telegram error:", response.text)
-
-    except Exception as exc:
-        print("Telegram send failed:", exc)
+BINANCE_URLS = [
+    "https://data-api.binance.vision",
+    "https://api.binance.com",
+    "https://api1.binance.com"
+]
 
 
 @app.route("/")
 def home():
-    return "Crypto Scalp Signal Bot is running ✅"
+    return "Crypto Scalp Signal Bot V2 is running ✅"
 
 
-def binance_get(path, params=None):
+def now_text():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def telegram_send(text):
+    try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        requests.post(
+            url,
+            json={
+                "chat_id": CHAT_ID,
+                "text": text,
+                "disable_web_page_preview": True
+            },
+            timeout=20
+        )
+    except Exception as e:
+        print("Telegram error:", e)
+
+
+def binance_get(path, params):
     last_error = None
 
-    for base in BINANCE_BASE_URLS:
+    for base in BINANCE_URLS:
         try:
-            response = requests.get(base + path, params=params, timeout=15)
-            data = response.json()
+            r = requests.get(base + path, params=params, timeout=15)
+            data = r.json()
 
-            if response.status_code == 200 and not (
-                isinstance(data, dict) and "code" in data
-            ):
+            if r.status_code == 200 and not (isinstance(data, dict) and "code" in data):
                 return data
 
             last_error = data
+        except Exception as e:
+            last_error = e
 
-        except Exception as exc:
-            last_error = exc
-
-    raise RuntimeError(f"Binance request failed: {last_error}")
+    raise RuntimeError(f"Binance failed: {last_error}")
 
 
-def get_klines(symbol, interval="5m", limit=120):
-    data = binance_get(
-        "/api/v3/klines",
-        {
-            "symbol": symbol,
-            "interval": interval,
-            "limit": limit,
-        },
-    )
+def get_klines(symbol, interval="5m", limit=150):
+    data = binance_get("/api/v3/klines", {
+        "symbol": symbol,
+        "interval": interval,
+        "limit": limit
+    })
 
     candles = []
-
-    for item in data:
-        candles.append(
-            {
-                "open_time": item[0],
-                "open": float(item[1]),
-                "high": float(item[2]),
-                "low": float(item[3]),
-                "close": float(item[4]),
-                "volume": float(item[5]),
-            }
-        )
+    for x in data:
+        candles.append({
+            "open": float(x[1]),
+            "high": float(x[2]),
+            "low": float(x[3]),
+            "close": float(x[4]),
+            "volume": float(x[5])
+        })
 
     return candles
 
@@ -119,11 +101,11 @@ def ema(values, period):
     if len(values) < period:
         return None
 
-    multiplier = 2 / (period + 1)
+    k = 2 / (period + 1)
     result = sum(values[:period]) / period
 
-    for price in values[period:]:
-        result = (price - result) * multiplier + result
+    for v in values[period:]:
+        result = (v - result) * k + result
 
     return result
 
@@ -132,8 +114,7 @@ def rsi(values, period=14):
     if len(values) <= period:
         return None
 
-    gains = []
-    losses = []
+    gains, losses = [], []
 
     for i in range(1, period + 1):
         diff = values[i] - values[i - 1]
@@ -158,13 +139,33 @@ def rsi(values, period=14):
     return 100 - (100 / (1 + rs))
 
 
+def atr(candles, period=14):
+    if len(candles) <= period:
+        return None
+
+    trs = []
+
+    for i in range(1, len(candles)):
+        high = candles[i]["high"]
+        low = candles[i]["low"]
+        prev_close = candles[i - 1]["close"]
+
+        tr = max(
+            high - low,
+            abs(high - prev_close),
+            abs(low - prev_close)
+        )
+
+        trs.append(tr)
+
+    return sum(trs[-period:]) / period
+
+
 def average(values):
-    if not values:
-        return 0
-    return sum(values) / len(values)
+    return sum(values) / len(values) if values else 0
 
 
-def price_precision(price):
+def precision(price):
     if price >= 1000:
         return 2
     if price >= 1:
@@ -172,189 +173,244 @@ def price_precision(price):
     return 6
 
 
-def analyze_symbol(symbol):
-    candles = get_klines(symbol, INTERVAL, 120)
+def btc_bias():
+    candles = get_klines("BTCUSDT", INTERVAL, 120)
+    closes = [c["close"] for c in candles]
 
-    if len(candles) < 60:
-        return None
+    e9 = ema(closes, 9)
+    e21 = ema(closes, 21)
+    e50 = ema(closes, 50)
+    last = closes[-1]
+
+    if e9 > e21 > e50 and last > e21:
+        return "BULLISH"
+        if e9 < e21 < e50 and last < e21:
+        return "BEARISH"
+
+    return "NEUTRAL"
+
+
+def analyze_symbol(symbol, market_bias):
+    candles = get_klines(symbol, INTERVAL, 150)
 
     closes = [c["close"] for c in candles]
     highs = [c["high"] for c in candles]
     lows = [c["low"] for c in candles]
     volumes = [c["volume"] for c in candles]
 
-    last_price = closes[-1]
-    previous_price = closes[-2]
+    price = closes[-1]
+    prev_price = closes[-2]
 
-    ema_9 = ema(closes, 9)
-    ema_21 = ema(closes, 21)
-    ema_50 = ema(closes, 50)
-    rsi_14 = rsi(closes, 14)
+    e9 = ema(closes, 9)
+    e21 = ema(closes, 21)
+    e50 = ema(closes, 50)
+    r = rsi(closes, 14)
+    a = atr(candles, 14)
 
-    recent_high = max(highs[-20:-1])
-    recent_low = min(lows[-20:-1])
+    if not all([e9, e21, e50, r, a]):
+        return None
 
-    avg_volume = average(volumes[-21:-1])
-    last_volume = volumes[-1]
-    volume_spike = last_volume > avg_volume * 1.25 if avg_volume > 0 else False
+    recent_high = max(highs[-30:-1])
+    recent_low = min(lows[-30:-1])
 
-    score_long = 0
-    score_short = 0
-    reasons_long = []
-    reasons_short = []
+    breakout = price > recent_high
+    breakdown = price < recent_low
 
-    if ema_9 and ema_21 and ema_50:
-        if ema_9 > ema_21 > ema_50:
-            score_long += 1
-            reasons_long.append("روند کوتاه‌مدت صعودی است؛ EMA9 بالای EMA21 و EMA50 قرار دارد.")
+    avg_vol = average(volumes[-25:-1])
+    volume_ratio = volumes[-1] / avg_vol if avg_vol > 0 else 0
+    volume_spike = volume_ratio >= VOLUME_RATIO_MIN
 
-        if ema_9 < ema_21 < ema_50:
-            score_short += 1
-            reasons_short.append("روند کوتاه‌مدت نزولی است؛ EMA9 پایین EMA21 و EMA50 قرار دارد.")
+    momentum = ((price - prev_price) / prev_price) * 100
 
-    if rsi_14 is not None:
-        if 52 <= rsi_14 <= 68:
-            score_long += 1
-            reasons_long.append(f"RSI در محدوده مثبت قرار دارد: {rsi_14:.1f}")
+    long_score = 0
+    short_score = 0
+    long_reasons = []
+    short_reasons = []
 
-        if 32 <= rsi_14 <= 48:
-            score_short += 1
-            reasons_short.append(f"RSI در محدوده منفی قرار دارد: {rsi_14:.1f}")
+    if e9 > e21 > e50:
+        long_score += 1
+        long_reasons.append("روند EMA صعودی است.")
 
-    if last_price > recent_high:
-        score_long += 1
-        reasons_long.append("شکست مقاومت کوتاه‌مدت دیده شد.")
+    if e9 < e21 < e50:
+        short_score += 1
+        short_reasons.append("روند EMA نزولی است.")
 
-    if last_price < recent_low:
-        score_short += 1
-        reasons_short.append("شکست حمایت کوتاه‌مدت دیده شد.")
+    if r >= LONG_RSI_MIN:
+        long_score += 1
+        long_reasons.append(f"RSI مناسب لانگ است: {r:.1f}")
+
+    if r <= SHORT_RSI_MAX:
+        short_score += 1
+        short_reasons.append(f"RSI مناسب شورت است: {r:.1f}")
+
+    if breakout:
+        long_score += 2
+        long_reasons.append("شکست مقاومت ۳۰ کندل اخیر دیده شد.")
+
+    if breakdown:
+        short_score += 2
+        short_reasons.append("شکست حمایت ۳۰ کندل اخیر دیده شد.")
 
     if volume_spike:
-        score_long += 1
-        score_short += 1
-        reasons_long.append("حجم معاملات بالاتر از میانگین است.")
-        reasons_short.append("حجم معاملات بالاتر از میانگین است.")
+        long_score += 1
+        short_score += 1
+        long_reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
+        short_reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
 
-    momentum = ((last_price - previous_price) / previous_price) * 100
+    if momentum > 0.12:
+        long_score += 1
+        long_reasons.append(f"مومنتوم مثبت است: {momentum:.2f}%")
 
-    if momentum > 0.08:
-        score_long += 1
-        reasons_long.append(f"مومنتوم کوتاه‌مدت مثبت است: {momentum:.2f}%")
+    if momentum < -0.12:
+        short_score += 1
+        short_reasons.append(f"مومنتوم منفی است: {momentum:.2f}%")
 
-    if momentum < -0.08:
-        score_short += 1
-        reasons_short.append(f"مومنتوم کوتاه‌مدت منفی است: {momentum:.2f}%")
-
-    if score_long >= score_short:
+    if long_score >= short_score:
         side = "LONG"
-        score = score_long
-        reasons = reasons_long
+        score = long_score
+        reasons = long_reasons
     else:
         side = "SHORT"
-        score = score_short
-        reasons = reasons_short
+        score = short_score
+        reasons = short_reasons
 
     if score < MIN_SCORE:
         return None
 
-    volatility = ((max(highs[-10:]) - min(lows[-10:])) / last_price) * 100
-    risk_pct = max(0.35, min(1.2, volatility * 0.45))
-
     if side == "LONG":
-        entry = last_price
-        stop_loss = entry * (1 - risk_pct / 100)
-        target_1 = entry * (1 + risk_pct * 1.3 / 100)
-        target_2 = entry * (1 + risk_pct * 2.1 / 100)
-    else:
-        entry = last_price
-        stop_loss = entry * (1 + risk_pct / 100)
-        target_1 = entry * (1 - risk_pct * 1.3 / 100)
-        target_2 = entry * (1 - risk_pct * 2.1 / 100)
+        if r < LONG_RSI_MIN or not breakout or not volume_spike:
+            return None
 
-    precision = price_precision(entry)
+        if symbol != "BTCUSDT" and market_bias == "BEARISH":
+            return None
+
+        entry = price
+        stop = min(recent_low, entry - (a * 1.1))
+        risk = entry - stop
+
+        target1 = entry + (risk * MIN_RR)
+        target2 = entry + (risk * 2.6)
+
+    else:
+        if r > SHORT_RSI_MAX or not breakdown or not volume_spike:
+            return None
+
+        if symbol != "BTCUSDT" and market_bias == "BULLISH":
+            return None
+
+        entry = price
+        stop = max(recent_high, entry + (a * 1.1))
+        risk = stop - entry
+
+        target1 = entry - (risk * MIN_RR)
+        target2 = entry - (risk * 2.6)
+
+    if risk <= 0:
+        return None
+
+    rr = abs(target1 - entry) / abs(entry - stop)
+
+    if rr < MIN_RR:
+        return None
+
+    p = precision(entry)
+
+    grade = "A+ ⭐⭐⭐⭐⭐" if score >= 6 else "A ⭐⭐⭐⭐"
 
     return {
-        "id": f"{symbol}-{side}-{round(entry, precision)}",
+        "id": f"{symbol}-{side}-{round(entry, p)}",
         "symbol": symbol,
         "side": side,
         "score": score,
-        "entry": round(entry, precision),
-        "stop_loss": round(stop_loss, precision),
-        "target_1": round(target_1, precision),
-        "target_2": round(target_2, precision),
-        "rsi": round(rsi_14, 2) if rsi_14 is not None else None,
-        "risk_pct": round(risk_pct, 2),
+        "grade": grade,
+        "entry": round(entry, p),
+        "stop": round(stop, p),
+        "target1": round(target1, p),
+        "target2": round(target2, p),
+        "rsi": round(r, 2),
+        "rr": round(rr, 2),
+        "volume_ratio": round(volume_ratio, 2),
         "reasons": reasons,
-        "time": now_utc_text(),
+        "time": now_text()
     }
 
 
-def format_signal(signal):
-    direction_emoji = "🟢" if signal["side"] == "LONG" else "🔴"
-
-    reasons_text = "\n".join([f"• {reason}" for reason in signal["reasons"]])
+def format_signal(s):
+    emoji = "🟢" if s["side"] == "LONG" else "🔴"
+    reasons = "\n".join([f"• {x}" for x in s["reasons"]])
 
     return f"""
-🚨 سیگنال اسکلپ کریپتو
+🚨 سیگنال اسکلپ نسخه ۲
 
-{direction_emoji} نوع معامله: {signal["side"]}
-🪙 ارز: {signal["symbol"]}
+{emoji} نوع معامله: {s["side"]}
+🪙 ارز: {s["symbol"]}
 ⏱ تایم‌فریم: {INTERVAL}
 
-📍 ورود پیشنهادی:
-{signal["entry"]}
-
-🎯 تارگت ۱:
-{signal["target_1"]}
+📍 ورود:
+{s["entry"]}
+    🎯 تارگت ۱:
+{s["target1"]}
 
 🎯 تارگت ۲:
-{signal["target_2"]}
+{s["target2"]}
 
 🛑 حد ضرر:
-{signal["stop_loss"]}
+{s["stop"]}
 
-📊 قدرت سیگنال:
-{signal["score"]}/5
+🔥 کیفیت سیگنال:
+{s["grade"]}
+
+📊 امتیاز:
+{s["score"]}/6
 
 📈 RSI:
-{signal["rsi"]}
+{s["rsi"]}
 
-⚠️ ریسک تقریبی:
-{signal["risk_pct"]}%
+📦 حجم:
+{s["volume_ratio"]} برابر میانگین
 
-🧠 دلایل سیگنال:
-{reasons_text}
+⚖️ Risk / Reward:
+1:{s["rr"]}
+
+🧠 دلایل:
+{reasons}
 
 🕒 زمان:
-{signal["time"]}
+{s["time"]}
 
-⚠️ این پیام توصیه مالی قطعی نیست. قبل از ورود، مدیریت سرمایه و شرایط بازار را بررسی کن.
+⚠️ این سیگنال توصیه مالی قطعی نیست. حتماً مدیریت سرمایه و حد ضرر را رعایت کن.
 """
-def scan_market():
-    print("Scanning market...")
-    telegram_send("🔍 اسکن جدید بازار آغاز شد...")
 
+
+def scan_market():
+    print("Scanning market V2...")
     found = []
+
+    try:
+        market_bias = btc_bias()
+    except Exception as e:
+        print("BTC bias error:", e)
+        market_bias = "NEUTRAL"
 
     for symbol in SYMBOLS:
         try:
-            signal = analyze_symbol(symbol)
+            signal = analyze_symbol(symbol, market_bias)
 
             if signal and signal["id"] not in sent_signals:
                 found.append(signal)
 
-        except Exception as exc:
-            print(f"{symbol} failed: {exc}")
+        except Exception as e:
+            print(f"{symbol} error:", e)
 
     found.sort(key=lambda x: x["score"], reverse=True)
 
     if not found:
-        telegram_send("⚪ در این اسکن سیگنال مناسبی پیدا نشد.")
+        telegram_send("⚪ نسخه ۲: در این اسکن سیگنال قوی پیدا نشد.")
         return
 
-    for signal in found[:MAX_SIGNALS_PER_SCAN]:
-        sent_signals[signal["id"]] = time.time()
-        telegram_send(format_signal(signal))
+    for s in found[:3]:
+        sent_signals[s["id"]] = time.time()
+        telegram_send(format_signal(s))
 
     cutoff = time.time() - 86400
 
@@ -365,18 +421,17 @@ def scan_market():
 
 def run_scheduler():
     telegram_send(f"""
-✅ ربات سیگنال اسکلپ فعال شد
+✅ ربات سیگنال اسکلپ نسخه ۲ فعال شد
 
-🔍 اسکن اولیه بازار شروع شد.
-📊 معیارها:
-• EMA
-• RSI
-• حجم معاملات
-• شکست حمایت/مقاومت
-• مومنتوم کوتاه‌مدت
+فیلترهای نسخه ۲:
+• فقط سیگنال‌های قوی
+• شکست حمایت/مقاومت اجباری
+• حجم بالا اجباری
+• RSI قوی
+• فیلتر جهت BTC برای آلت‌کوین‌ها
+• Risk/Reward حداقل 1:{MIN_RR}
 
-⏱ فاصله بررسی: هر {CHECK_MINUTES} دقیقه
-🪙 تایم‌فریم: {INTERVAL}
+⏱ بررسی هر {CHECK_MINUTES} دقیقه
 """)
 
     scan_market()
@@ -386,7 +441,7 @@ def run_scheduler():
     scheduler.start()
 
 
-if __name__ == "__main__":
+if name == "__main__":
     threading.Thread(target=run_scheduler, daemon=True).start()
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
