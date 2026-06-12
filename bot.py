@@ -174,22 +174,42 @@ def precision(price):
 
 
 def btc_bias():
-    candles = get_klines("BTCUSDT", INTERVAL, 120)
-    closes = [c["close"] for c in candles]
+    try:
+        print("BTC BIAS STEP 1")
 
-    e9 = ema(closes, 9)
-    e21 = ema(closes, 21)
-    e50 = ema(closes, 50)
+        candles = get_klines("BTCUSDT", INTERVAL, 120)
+        print("BTC BIAS STEP 2 - candles:", len(candles))
 
-    last = closes[-1]
+        if not candles or len(candles) < 60:
+            print("BTC BIAS not enough candles")
+            return "NEUTRAL"
 
-    if e9 > e21 > e50 and last > e21:
-        return "BULLISH"
+        closes = [c["close"] for c in candles]
 
-    if e9 < e21 < e50 and last < e21:
-        return "BEARISH"
+        e9 = ema(closes, 9)
+        e21 = ema(closes, 21)
+        e50 = ema(closes, 50)
 
-    return "NEUTRAL"
+        if e9 is None or e21 is None or e50 is None:
+            print("BTC BIAS EMA error")
+            return "NEUTRAL"
+
+        last = closes[-1]
+
+        if e9 > e21 > e50 and last > e21:
+            print("BTC BIAS = BULLISH")
+            return "BULLISH"
+
+        if e9 < e21 < e50 and last < e21:
+            print("BTC BIAS = BEARISH")
+            return "BEARISH"
+
+        print("BTC BIAS = NEUTRAL")
+        return "NEUTRAL"
+
+    except Exception as e:
+        print("BTC BIAS ERROR:", e)
+        return "NEUTRAL"
 
 
 def analyze_symbol(symbol, market_bias):
