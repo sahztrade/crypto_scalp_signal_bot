@@ -167,21 +167,34 @@ def get_klines(symbol, interval="5m", limit=300):
     pair = to_lbank_symbol(symbol)
     k_type = lbank_interval(interval)
 
-    # LBank v1 docs use size/type/symbol/time. time is seconds.
+    seconds_map = {
+        "1m": 60,
+        "5m": 300,
+        "15m": 900,
+        "30m": 1800,
+        "1h": 3600,
+        "4h": 14400,
+        "1d": 86400
+    }
+
+    seconds = seconds_map.get(interval, 300)
+    start_time = int(time.time()) - (limit * seconds)
+
     data = lbank_get("/v1/kline.do", {
         "symbol": pair,
         "type": k_type,
-        "size": min(int(limit), 2880),
-        "time": int(time.time())
+        "size": min(int(limit), 1000),
+        "time": start_time
     })
 
     if isinstance(data, dict) and "data" in data:
         data = data["data"]
 
     if not isinstance(data, list):
-        raise RuntimeError(f"Unexpected LBank kline response for {symbol}: {str(data)[:300]}")
+        raise RuntimeError(f"Unexpected LBank response for {symbol}: {data}")
 
     candles = []
+
     for row in data:
         try:
             c = parse_lbank_kline_row(row)
@@ -190,8 +203,6 @@ def get_klines(symbol, interval="5m", limit=300):
         except Exception as e:
             log("KLINE PARSE ERROR:", symbol, row, e)
 
-    # Some APIs return newest first. Sort is not possible without timestamp after parsing,
-    # so detect with close sequence is not reliable. LBank v1 generally returns old -> new.
     return candles[-limit:]
 
 
