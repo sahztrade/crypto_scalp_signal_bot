@@ -458,6 +458,18 @@ def analyze_symbol(symbol, btc_market_bias):
         retest_short = last_candle["high"] >= recent_low * 0.998 and last_candle["close"] < recent_low
         confirm_short = last_candle["close"] < last_candle["open"] and candle_body_ratio(last_candle) >= 0.45
 
+        log(
+            symbol,
+            f"RSI={round(r,1)} "
+            f"VOL={round(volume_ratio,2)} "
+            f"T5={trend_5m} "
+            f"T15={trend_15m} "
+            f"BL={breakout_long} "
+            f"RL={retest_long} "
+            f"BS={breakout_short} "
+            f"RS={retest_short}"
+        )
+
         if breakout_long and retest_long and confirm_long:
             side = "LONG"
 
@@ -468,7 +480,7 @@ def analyze_symbol(symbol, btc_market_bias):
             return None
 
         if side == "LONG":
-            if r > MAX_LONG_RSI:
+            if r > 78:
                 return None
 
             if btc_market_bias == "BEARISH" and symbol != "BTCUSDT":
@@ -477,13 +489,13 @@ def analyze_symbol(symbol, btc_market_bias):
             if trend_5m != "BULLISH" or trend_15m != "BULLISH":
                 return None
 
-            if volume_ratio < MIN_VOLUME_RATIO:
+            if volume_ratio < 1.5:
                 return None
 
             stoch_ok, stoch_strength = stoch_xy_confirm(closes, "LONG")
             tmco_ok = tmco_confirm(closes, "LONG")
 
-            if not stoch_ok or not tmco_ok:
+            if not stoch_ok and not tmco_ok:
                 return None
 
             entry = price
@@ -508,18 +520,20 @@ def analyze_symbol(symbol, btc_market_bias):
             score += 1
             reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
 
-            score += 1
-            reasons.append(f"Stoch X/Y تایید لانگ داد. قدرت: {stoch_strength}%")
+            if stoch_ok:
+                score += 1
+                reasons.append(f"Stoch X/Y تایید لانگ داد. قدرت: {stoch_strength}%")
 
-            score += 1
-            reasons.append("TMCO تایید لانگ داد.")
+            if tmco_ok:
+                score += 1
+                reasons.append("TMCO تایید لانگ داد.")
 
             if momentum > 0:
                 score += 1
                 reasons.append(f"مومنتوم مثبت است: {momentum:.2f}%")
 
         else:
-            if r < MIN_SHORT_RSI:
+            if r < 22:
                 return None
 
             if btc_market_bias == "BULLISH" and symbol != "BTCUSDT":
@@ -528,13 +542,13 @@ def analyze_symbol(symbol, btc_market_bias):
             if trend_5m != "BEARISH" or trend_15m != "BEARISH":
                 return None
 
-            if volume_ratio < MIN_VOLUME_RATIO:
+            if volume_ratio < 1.5:
                 return None
 
             stoch_ok, stoch_strength = stoch_xy_confirm(closes, "SHORT")
             tmco_ok = tmco_confirm(closes, "SHORT")
 
-            if not stoch_ok or not tmco_ok:
+            if not stoch_ok and not tmco_ok:
                 return None
 
             entry = price
@@ -559,17 +573,21 @@ def analyze_symbol(symbol, btc_market_bias):
             score += 1
             reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
 
-            score += 1
-            reasons.append(f"Stoch X/Y تایید شورت داد. قدرت: {stoch_strength}%")
+            if stoch_ok:
+                score += 1
+                reasons.append(f"Stoch X/Y تایید شورت داد. قدرت: {stoch_strength}%")
 
-            score += 1
-            reasons.append("TMCO تایید شورت داد.")
+            if tmco_ok:
+                score += 1
+                reasons.append("TMCO تایید شورت داد.")
 
             if momentum < 0:
                 score += 1
                 reasons.append(f"مومنتوم منفی است: {momentum:.2f}%")
 
-        if score < MIN_SCORE:
+        log(symbol, f"SCORE={score} SIDE={side}")
+
+        if score < 5:
             return None
 
         rr = abs(target1 - entry) / abs(entry - stop)
@@ -597,7 +615,6 @@ def analyze_symbol(symbol, btc_market_bias):
     except Exception as e:
         log(f"{symbol} analyze error:", e)
         return None
-
 
 def format_signal(s):
     emoji = "🟢" if s["side"] == "LONG" else "🔴"
