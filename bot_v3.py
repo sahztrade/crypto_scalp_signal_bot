@@ -768,7 +768,6 @@ def scan_market():
             "🤖 ربات فعال است\n\n"
             "❌ در یک ساعت گذشته سیگنال معتبری پیدا نشد."
         )
-             no_signal_count = 0
 
     log("SCAN FINISHED - no signal")
     return
