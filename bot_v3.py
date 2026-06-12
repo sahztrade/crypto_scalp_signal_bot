@@ -454,11 +454,11 @@ def analyze_symbol(symbol, btc_market_bias):
         body_ok = candle_body_ratio(last_candle) >= 0.35
 
         breakout_long = price > recent_high
-        near_breakout_long = price >= recent_high * 0.997
+        near_breakout_long = price >= recent_high * 0.999
         confirm_long = last_candle["close"] > last_candle["open"] and body_ok
 
         breakout_short = price < recent_low
-        near_breakout_short = price <= recent_low * 1.003
+        near_breakout_short = price <= recent_low * 1.001
         confirm_short = last_candle["close"] < last_candle["open"] and body_ok
 
         log(
@@ -552,14 +552,14 @@ def analyze_symbol(symbol, btc_market_bias):
                 reasons.append("TMCO تایید لانگ داد.")
 
             entry = price
-            stop = min(last_candle["low"], entry - a)
+            stop = min(last_candle["low"], entry - (a * 1.2))
             risk = entry - stop
 
             if risk <= 0:
                 return None
 
-            target1 = entry + risk
-            target2 = entry + (risk * 1.5)
+            target1 = entry + (risk * 1.5)
+            target2 = entry + (risk * 2.5)
 
         else:
             if r < MIN_SHORT_RSI:
@@ -610,17 +610,20 @@ def analyze_symbol(symbol, btc_market_bias):
                 reasons.append("TMCO تایید شورت داد.")
 
             entry = price
-            stop = max(last_candle["high"], entry + a)
+            stop = max(last_candle["high"], entry + (a * 1.2))
             risk = stop - entry
 
             if risk <= 0:
                 return None
 
-            target1 = entry - risk
-            target2 = entry - (risk * 1.5)
+            target1 = entry - (risk * 1.5)
+            target2 = entry - (risk * 2.5)
 
         log(symbol, f"SCORE={score} SIDE={side}")
 
+        if rr < 1.5:
+            return None
+            
         if score < MIN_SCORE:
             return None
 
