@@ -64,15 +64,30 @@ def binance_get(path, params):
 
     for base in BINANCE_URLS:
         try:
-            r = requests.get(base + path, params=params, timeout=15)
+            print("BINANCE TRY:", base)
+
+            r = requests.get(
+                base + path,
+                params=params,
+                timeout=8
+            )
+
+            print("BINANCE STATUS:", r.status_code)
+
             data = r.json()
 
-            if r.status_code == 200 and not (isinstance(data, dict) and "code" in data):
+            if r.status_code == 200 and not (
+                isinstance(data, dict) and "code" in data
+            ):
+                print("BINANCE OK:", base)
                 return data
 
             last_error = data
+            print("BINANCE BAD RESPONSE:", data)
+
         except Exception as e:
             last_error = e
+            print("BINANCE ERROR:", base, e)
 
     raise RuntimeError(f"Binance failed: {last_error}")
 
