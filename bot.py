@@ -385,18 +385,30 @@ def format_signal(s):
 
 
 def scan_market():
-    print("Scanning market V2...")
+    print("SCAN STEP 1 - scan_market started")
+
     found = []
 
     try:
+        print("SCAN STEP 2 - getting BTC bias")
         market_bias = btc_bias()
+        print("SCAN STEP 3 - BTC bias:", market_bias)
     except Exception as e:
         print("BTC bias error:", e)
         market_bias = "NEUTRAL"
 
+    print("SCAN STEP 4 - checking symbols")
+
     for symbol in SYMBOLS:
         try:
+            print(f"Checking {symbol}")
+
             signal = analyze_symbol(symbol, market_bias)
+
+            if signal:
+                print(f"Signal found: {symbol} score={signal.get('score')}")
+            else:
+                print(f"No signal for {symbol}")
 
             if signal and signal["id"] not in sent_signals:
                 found.append(signal)
@@ -404,21 +416,37 @@ def scan_market():
         except Exception as e:
             print(f"{symbol} error:", e)
 
-    found.sort(key=lambda x: x["score"], reverse=True)
+    print("SCAN STEP 5 - sorting signals")
+
+    try:
+        found.sort(key=lambda x: x["score"], reverse=True)
+    except Exception as e:
+        print("Sort error:", e)
 
     if not found:
         print("No strong signal found.")
+        print("SCAN FINISHED - no signal")
         return
 
+    print(f"SCAN STEP 6 - sending {len(found[:3])} signals")
+
     for s in found[:3]:
-        sent_signals[s["id"]] = time.time()
-        telegram_send(format_signal(s))
+        try:
+            sent_signals[s["id"]] = time.time()
+            telegram_send(format_signal(s))
+            print(f"Signal sent: {s['symbol']} {s['side']}")
+        except Exception as e:
+            print("Telegram send signal error:", e)
+
+    print("SCAN STEP 7 - cleaning old signals")
 
     cutoff = time.time() - 86400
 
     for key, ts in list(sent_signals.items()):
         if ts < cutoff:
             del sent_signals[key]
+
+    print("SCAN FINISHED")
 
 def run_scheduler():
     print("Scheduler Started")
