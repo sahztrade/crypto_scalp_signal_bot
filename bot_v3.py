@@ -21,10 +21,10 @@ SYMBOLS = [
 INTERVAL = os.getenv("INTERVAL", "5m")
 CHECK_MINUTES = int(os.getenv("CHECK_MINUTES", "5"))
 
-MIN_SCORE = 5
-MIN_VOLUME_RATIO = 1.5
-MAX_LONG_RSI = 78
-MIN_SHORT_RSI = 22
+MIN_SCORE = 3
+MIN_VOLUME_RATIO = 1
+MAX_LONG_RSI = 85
+MIN_SHORT_RSI = 15
 
 LBANK_BASE_URLS = [
     "https://api.lbkex.com",
@@ -495,8 +495,8 @@ def analyze_symbol(symbol, btc_market_bias):
             stoch_ok, stoch_strength = stoch_xy_confirm(closes, "LONG")
             tmco_ok = tmco_confirm(closes, "LONG")
 
-            if not stoch_ok and not tmco_ok:
-                return None
+            # if not stoch_ok and not tmco_ok:
+            #     return None
 
             entry = price
             stop = min(recent_high, last_candle["low"], entry - a)
@@ -548,9 +548,8 @@ def analyze_symbol(symbol, btc_market_bias):
             stoch_ok, stoch_strength = stoch_xy_confirm(closes, "SHORT")
             tmco_ok = tmco_confirm(closes, "SHORT")
 
-            if not stoch_ok and not tmco_ok:
-                return None
-
+            # if not stoch_ok and not tmco_ok:
+            #     return None
             entry = price
             stop = max(recent_low, last_candle["high"], entry + a)
             risk = stop - entry
@@ -587,7 +586,7 @@ def analyze_symbol(symbol, btc_market_bias):
 
         log(symbol, f"SCORE={score} SIDE={side}")
 
-        if score < 5:
+        if score < 3:
             return None
 
         rr = abs(target1 - entry) / abs(entry - stop)
