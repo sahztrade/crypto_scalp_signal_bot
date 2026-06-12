@@ -424,19 +424,21 @@ def scan_market():
 def run_scheduler():
     print("Scheduler Started")
 
-    telegram_send(f"""
-✅ ربات اسکلپ نسخه ۲ فعال شد
+    try:
+        telegram_send("ربات فعال شد")
+        print("Telegram startup sent")
+    except Exception as e:
+        print("Telegram startup error:", e)
 
-فیلترها:
-• فقط سیگنال‌های قوی
-• شکست حمایت/مقاومت اجباری
-• حجم بالا اجباری
-• RSI قوی
-• فیلتر جهت BTC
-• Risk/Reward حداقل 1:{MIN_RR}
+    while True:
+        try:
+            print("Scanning market V2...")
+            scan_market()
+            print("Scan finished")
+        except Exception as e:
+            print("Scheduler loop error:", e)
 
-⏱ بررسی هر {CHECK_MINUTES} دقیقه
-""")
+        time.sleep(CHECK_MINUTES * 60)
 
     while True:
         try:
