@@ -708,7 +708,8 @@ def scan_market():
 def run_scheduler():
     log("Scheduler Started")
     log("LBank V3 Started")
-
+    telegram_send("✅ ربات نسخه ۳ LBank فعال شد و اسکن بازار شروع شد")
+    
     while True:
         try:
             log("Scanning market V3 LBank...")
