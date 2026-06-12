@@ -406,9 +406,9 @@ def scan_market():
 
     found.sort(key=lambda x: x["score"], reverse=True)
 
-    if not found:
-        telegram_send("⚪ نسخه ۲: در این اسکن سیگنال قوی پیدا نشد.")
-        return
+        if not found:
+            print("No strong signal found.")
+            return
 
     for s in found[:3]:
         sent_signals[s["id"]] = time.time()
@@ -422,25 +422,29 @@ def scan_market():
 
 
 def run_scheduler():
-    telegram_send(f"""
-✅ ربات سیگنال اسکلپ نسخه ۲ فعال شد
+    print("Scheduler Started")
 
-فیلترهای نسخه ۲:
+    telegram_send(f"""
+✅ ربات اسکلپ نسخه ۲ فعال شد
+
+فیلترها:
 • فقط سیگنال‌های قوی
 • شکست حمایت/مقاومت اجباری
 • حجم بالا اجباری
 • RSI قوی
-• فیلتر جهت BTC برای آلت‌کوین‌ها
+• فیلتر جهت BTC
 • Risk/Reward حداقل 1:{MIN_RR}
 
 ⏱ بررسی هر {CHECK_MINUTES} دقیقه
 """)
 
-    scan_market()
+    while True:
+        try:
+            scan_market()
+        except Exception as e:
+            print("Scheduler loop error:", e)
 
-    scheduler = BlockingScheduler()
-    scheduler.add_job(scan_market, "interval", minutes=CHECK_MINUTES)
-    scheduler.start()
+        time.sleep(CHECK_MINUTES * 60)
 
 
 if __name__ == "__main__":
