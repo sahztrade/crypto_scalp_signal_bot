@@ -25,8 +25,8 @@ SYMBOLS = [
 INTERVAL = os.getenv("INTERVAL", "5m")
 CHECK_MINUTES = int(os.getenv("CHECK_MINUTES", "5"))
 
-MIN_SCORE = 3
-MIN_VOLUME_RATIO = 2.0
+MIN_SCORE = 5
+MIN_VOLUME_RATIO = 1.5
 MAX_LONG_RSI = 75
 MIN_SHORT_RSI = 40
 
@@ -513,6 +513,10 @@ def analyze_symbol(symbol, btc_market_bias):
                 log(symbol, "LONG rejected: RSI too high", r)
                 return None
 
+            if volume_ratio < MIN_VOLUME_RATIO:
+                log(symbol, "LONG rejected: low volume", volume_ratio)
+                return None
+
             if btc_market_bias == "BEARISH" and symbol != "BTCUSDT":
                 score -= 1
                 reasons.append("جهت BTC کمی مخالف است.")
@@ -571,6 +575,10 @@ def analyze_symbol(symbol, btc_market_bias):
                 log(symbol, "SHORT rejected: RSI too low", r)
                 return None
 
+            if volume_ratio < MIN_VOLUME_RATIO:
+                log(symbol, "SHORT rejected: low volume", volume_ratio)
+                return None
+                
             if btc_market_bias == "BULLISH" and symbol != "BTCUSDT":
                 score -= 1
                 reasons.append("جهت BTC کمی مخالف است.")
@@ -633,6 +641,8 @@ def analyze_symbol(symbol, btc_market_bias):
 
         if rr < 1.5:
             return None
+
+        score = min(score, 7)
         
         p = precision(entry)
 
