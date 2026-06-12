@@ -440,14 +440,6 @@ def run_scheduler():
 
         time.sleep(CHECK_MINUTES * 60)
 
-    while True:
-        try:
-            scan_market()
-        except Exception as e:
-            print("Scheduler loop error:", e)
-
-        time.sleep(CHECK_MINUTES * 60)
-
 
 if __name__ == "__main__":
     threading.Thread(target=run_scheduler).start()
