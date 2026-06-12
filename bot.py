@@ -423,13 +423,7 @@ def scan_market():
 def run_scheduler():
     print("Scheduler Started")
     print("Checkpoint 1")
-
-    try:
-        telegram_send("ربات فعال شد")
-        print("Checkpoint 2")
-    except Exception as e:
-        print("Telegram startup error:", e)
-
+    print("Checkpoint 2")
     print("Checkpoint 3")
 
     while True:
@@ -441,7 +435,6 @@ def run_scheduler():
             print("Scheduler loop error:", e)
 
         time.sleep(CHECK_MINUTES * 60)
-
 
 if __name__ == "__main__":
     threading.Thread(target=run_scheduler).start()
