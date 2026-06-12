@@ -402,7 +402,7 @@ def analyze_symbol(symbol, btc_market_bias):
         candles = get_klines(symbol, INTERVAL, 300)
         candles_15m = get_klines(symbol, "15m", 250)
 
-        if len(candles) < 220 or len(candles_15m) < 220:
+        if len(candles) < 80 or len(candles_15m) < 80:
             log(symbol, "not enough candles", len(candles), len(candles_15m))
             return None
 
@@ -438,44 +438,108 @@ def analyze_symbol(symbol, btc_market_bias):
         reasons = []
         side = None
 
-        breakout_long = prev_candle["close"] > recent_high
-        retest_long = last_candle["low"] <= recent_high * 1.002 and last_candle["close"] > recent_high
-        confirm_long = last_candle["close"] > last_candle["open"] and candle_body_ratio(last_candle) >= 0.45
+        body_ok = candle_body_ratio(last_candle) >= 0.35
 
-        breakout_short = prev_candle["close"] < recent_low
-        retest_short = last_candle["high"] >= recent_low * 0.998 and last_candle["close"] < recent_low
-        confirm_short = last_candle["close"] < last_candle["open"] and candle_body_ratio(last_candle) >= 0.45
+        breakout_long = price > recent_high
+        near_breakout_long = price >= recent_high * 0.997
+        confirm_long = last_candle["close"] > last_candle["open"] and body_ok
 
-        if breakout_long and retest_long and confirm_long:
+        breakout_short = price < recent_low
+        near_breakout_short = price <= recent_low * 1.003
+        confirm_short = last_candle["close"] < last_candle["open"] and body_ok
+
+        log(
+            symbol,
+            f"RSI={round(r,1)} "
+            f"VOL={round(volume_ratio,2)} "
+            f"MOM={round(momentum,2)} "
+            f"T5={trend_5m} "
+            f"T15={trend_15m} "
+            f"BL={breakout_long} "
+            f"NBL={near_breakout_long} "
+            f"BS={breakout_short} "
+            f"NBS={near_breakout_short}"
+        )
+
+        long_candidate = (
+            (breakout_long and confirm_long) or
+            (near_breakout_long and momentum > 0 and r >= 50) or
+            (trend_5m == "BULLISH" and momentum > 0.05 and r >= 52)
+        )
+
+        short_candidate = (
+            (breakout_short and confirm_short) or
+            (near_breakout_short and momentum < 0 and r <= 50) or
+            (trend_5m == "BEARISH" and momentum < -0.05 and r <= 48)
+        )
+
+        if long_candidate and not short_candidate:
             side = "LONG"
-
-        if breakout_short and retest_short and confirm_short:
+        elif short_candidate and not long_candidate:
             side = "SHORT"
+        elif long_candidate and short_candidate:
+            if momentum >= 0:
+                side = "LONG"
+            else:
+                side = "SHORT"
 
         if not side:
+            log(symbol, "NO SIDE")
             return None
+
+        stoch_ok, stoch_strength = stoch_xy_confirm(closes, side)
+        tmco_ok = tmco_confirm(closes, side)
 
         if side == "LONG":
             if r > MAX_LONG_RSI:
+                log(symbol, "LONG rejected: RSI too high", r)
                 return None
 
             if btc_market_bias == "BEARISH" and symbol != "BTCUSDT":
-                return None
+                score -= 1
+                reasons.append("جهت BTC کمی مخالف است.")
 
-            if trend_5m != "BULLISH" or trend_15m != "BULLISH":
-                return None
+            if trend_5m == "BULLISH":
+                score += 1
+                reasons.append("روند ۵ دقیقه صعودی است.")
 
-            if volume_ratio < MIN_VOLUME_RATIO:
-                return None
+            if trend_15m == "BULLISH":
+                score += 1
+                reasons.append("روند ۱۵ دقیقه صعودی است.")
 
-            stoch_ok, stoch_strength = stoch_xy_confirm(closes, "LONG")
-            tmco_ok = tmco_confirm(closes, "LONG")
+            if breakout_long:
+                score += 1
+                reasons.append("شکست مقاومت دیده شد.")
+            elif near_breakout_long:
+                score += 1
+                reasons.append("قیمت نزدیک مقاومت و در حال فشار صعودی است.")
 
-            if not stoch_ok or not tmco_ok:
-                return None
+            if confirm_long:
+                score += 1
+                reasons.append("کندل تاییدی صعودی است.")
+
+            if volume_ratio >= MIN_VOLUME_RATIO:
+                score += 1
+                reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
+
+            if r >= 50:
+                score += 1
+                reasons.append(f"RSI مناسب لانگ است: {r:.1f}")
+
+            if momentum > 0:
+                score += 1
+                reasons.append(f"مومنتوم مثبت است: {momentum:.2f}%")
+
+            if stoch_ok:
+                score += 1
+                reasons.append(f"Stoch X/Y تایید لانگ داد. قدرت: {stoch_strength}%")
+
+            if tmco_ok:
+                score += 1
+                reasons.append("TMCO تایید لانگ داد.")
 
             entry = price
-            stop = min(recent_high, last_candle["low"], entry - a)
+            stop = min(last_candle["low"], entry - a)
             risk = entry - stop
 
             if risk <= 0:
@@ -484,49 +548,56 @@ def analyze_symbol(symbol, btc_market_bias):
             target1 = entry + risk
             target2 = entry + (risk * 1.5)
 
-            score += 1
-            reasons.append("جهت BTC مخالف نیست.")
-
-            score += 1
-            reasons.append("روند ۵ دقیقه و ۱۵ دقیقه صعودی است.")
-
-            score += 1
-            reasons.append("شکست مقاومت و پولبک تایید شد.")
-
-            score += 1
-            reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
-
-            score += 1
-            reasons.append(f"Stoch X/Y تایید لانگ داد. قدرت: {stoch_strength}%")
-
-            score += 1
-            reasons.append("TMCO تایید لانگ داد.")
-
-            if momentum > 0:
-                score += 1
-                reasons.append(f"مومنتوم مثبت است: {momentum:.2f}%")
-
         else:
             if r < MIN_SHORT_RSI:
+                log(symbol, "SHORT rejected: RSI too low", r)
                 return None
 
             if btc_market_bias == "BULLISH" and symbol != "BTCUSDT":
-                return None
+                score -= 1
+                reasons.append("جهت BTC کمی مخالف است.")
 
-            if trend_5m != "BEARISH" or trend_15m != "BEARISH":
-                return None
+            if trend_5m == "BEARISH":
+                score += 1
+                reasons.append("روند ۵ دقیقه نزولی است.")
 
-            if volume_ratio < MIN_VOLUME_RATIO:
-                return None
+            if trend_15m == "BEARISH":
+                score += 1
+                reasons.append("روند ۱۵ دقیقه نزولی است.")
 
-            stoch_ok, stoch_strength = stoch_xy_confirm(closes, "SHORT")
-            tmco_ok = tmco_confirm(closes, "SHORT")
+            if breakout_short:
+                score += 1
+                reasons.append("شکست حمایت دیده شد.")
+            elif near_breakout_short:
+                score += 1
+                reasons.append("قیمت نزدیک حمایت و در حال فشار نزولی است.")
 
-            if not stoch_ok or not tmco_ok:
-                return None
+            if confirm_short:
+                score += 1
+                reasons.append("کندل تاییدی نزولی است.")
+
+            if volume_ratio >= MIN_VOLUME_RATIO:
+                score += 1
+                reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
+
+            if r <= 50:
+                score += 1
+                reasons.append(f"RSI مناسب شورت است: {r:.1f}")
+
+            if momentum < 0:
+                score += 1
+                reasons.append(f"مومنتوم منفی است: {momentum:.2f}%")
+
+            if stoch_ok:
+                score += 1
+                reasons.append(f"Stoch X/Y تایید شورت داد. قدرت: {stoch_strength}%")
+
+            if tmco_ok:
+                score += 1
+                reasons.append("TMCO تایید شورت داد.")
 
             entry = price
-            stop = max(recent_low, last_candle["high"], entry + a)
+            stop = max(last_candle["high"], entry + a)
             risk = stop - entry
 
             if risk <= 0:
@@ -535,27 +606,7 @@ def analyze_symbol(symbol, btc_market_bias):
             target1 = entry - risk
             target2 = entry - (risk * 1.5)
 
-            score += 1
-            reasons.append("جهت BTC مخالف نیست.")
-
-            score += 1
-            reasons.append("روند ۵ دقیقه و ۱۵ دقیقه نزولی است.")
-
-            score += 1
-            reasons.append("شکست حمایت و پولبک تایید شد.")
-
-            score += 1
-            reasons.append(f"حجم معاملات {volume_ratio:.2f} برابر میانگین است.")
-
-            score += 1
-            reasons.append(f"Stoch X/Y تایید شورت داد. قدرت: {stoch_strength}%")
-
-            score += 1
-            reasons.append("TMCO تایید شورت داد.")
-
-            if momentum < 0:
-                score += 1
-                reasons.append(f"مومنتوم منفی است: {momentum:.2f}%")
+        log(symbol, f"SCORE={score} SIDE={side}")
 
         if score < MIN_SCORE:
             return None
@@ -585,7 +636,6 @@ def analyze_symbol(symbol, btc_market_bias):
     except Exception as e:
         log(f"{symbol} analyze error:", e)
         return None
-
 
 def format_signal(s):
     emoji = "🟢" if s["side"] == "LONG" else "🔴"
