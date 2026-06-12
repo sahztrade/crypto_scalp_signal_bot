@@ -420,15 +420,17 @@ def scan_market():
         if ts < cutoff:
             del sent_signals[key]
 
-
 def run_scheduler():
     print("Scheduler Started")
+    print("Checkpoint 1")
 
     try:
         telegram_send("ربات فعال شد")
-        print("Telegram startup sent")
+        print("Checkpoint 2")
     except Exception as e:
         print("Telegram startup error:", e)
+
+    print("Checkpoint 3")
 
     while True:
         try:
@@ -441,7 +443,7 @@ def run_scheduler():
         time.sleep(CHECK_MINUTES * 60)
 
 
-if __name__ == "__main__":
+if name == "__main__":
     threading.Thread(target=run_scheduler).start()
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
