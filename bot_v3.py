@@ -782,9 +782,9 @@ def run_scheduler():
 
     while True:
         try:
-            log("Scanning market V3 LBank...")
+            log(f"SCAN START {now_text()}")
             scan_market()
-            log("Scan finished")
+            log(f"SCAN END {now_text()}")
         except Exception as e:
             log("Scheduler loop error:", e)
 
