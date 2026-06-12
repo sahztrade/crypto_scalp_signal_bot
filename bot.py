@@ -406,9 +406,9 @@ def scan_market():
 
     found.sort(key=lambda x: x["score"], reverse=True)
 
-        if not found:
-            print("No strong signal found.")
-            return
+    if not found:
+        print("No strong signal found.")
+        return
 
     for s in found[:3]:
         sent_signals[s["id"]] = time.time()
