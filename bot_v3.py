@@ -22,9 +22,9 @@ INTERVAL = os.getenv("INTERVAL", "5m")
 CHECK_MINUTES = int(os.getenv("CHECK_MINUTES", "5"))
 
 MIN_SCORE = 5
-MIN_VOLUME_RATIO = 1.8
-MAX_LONG_RSI = 75
-MIN_SHORT_RSI = 25
+MIN_VOLUME_RATIO = 1.5
+MAX_LONG_RSI = 78
+MIN_SHORT_RSI = 22
 
 LBANK_BASE_URLS = [
     "https://api.lbkex.com",
