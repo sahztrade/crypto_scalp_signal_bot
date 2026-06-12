@@ -763,12 +763,12 @@ def scan_market():
                log(f"No signal count={no_signal_count}")
                log("No strong signal found.")
 
-    if no_signal_count >= 12:
-               telegram_send(
+               if no_signal_count >= 12:
+                   telegram_send(
             "🤖 ربات فعال است\n\n"
             "❌ در یک ساعت گذشته سیگنال معتبری پیدا نشد."
         )
-    no_signal_count = 0
+               no_signal_count = 0
     
                log("SCAN FINISHED - no signal")
                return
