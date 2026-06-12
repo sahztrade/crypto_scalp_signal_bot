@@ -782,7 +782,7 @@ def scan_market():
 
             log(f"Signal sent: {s['symbol']} {s['side']}")
 
-    except Exception as e:
+        except Exception as e:
             log("Telegram send signal error:", e)
 
     cutoff = time.time() - 86400
