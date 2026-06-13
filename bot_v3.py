@@ -192,7 +192,6 @@ def get_klines(symbol, interval="5m", limit=300):
         "symbol": pair,
         "type": k_type,
         "size": min(int(limit), 1000),
-        "time": start_time
     })
 
     if isinstance(data, dict) and "data" in data:
