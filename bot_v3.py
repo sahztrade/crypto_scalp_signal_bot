@@ -426,7 +426,7 @@ def analyze_symbol(symbol, btc_market_bias):
         candles_3m = get_klines(symbol, "3m", 100)
 
         if len(candles) < 80 or len(candles_3m) < 80:
-            log(symbol, "not enough candles", len(candles), len(candles_15m))
+            log(symbol, "not enough candles", len(candles), len(candles_3m))
             return None
 
         closes = [c["close"] for c in candles]
