@@ -88,6 +88,7 @@ def to_lbank_symbol(symbol):
 def lbank_interval(interval):
     mapping = {
         "1m": "minute1",
+        "3m": "minute3",
         "5m": "minute5",
         "15m": "minute15",
         "30m": "minute30",
@@ -175,6 +176,7 @@ def get_klines(symbol, interval="5m", limit=300):
 
     seconds_map = {
         "1m": 60,
+        "3m": 180,
         "5m": 300,
         "15m": 900,
         "30m": 1800,
