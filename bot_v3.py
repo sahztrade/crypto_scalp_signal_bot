@@ -423,9 +423,9 @@ def candle_body_ratio(candle):
 def analyze_symbol(symbol, btc_market_bias):
     try:
         candles = get_klines(symbol, INTERVAL, 300)
-        candles_15m = get_klines(symbol, "15m", 250)
+        candles_3m = get_klines(symbol, "3m", 300)
 
-        if len(candles) < 80 or len(candles_15m) < 80:
+        if len(candles) < 80 or len(candles_3m) < 80:
             log(symbol, "not enough candles", len(candles), len(candles_15m))
             return None
 
@@ -447,7 +447,7 @@ def analyze_symbol(symbol, btc_market_bias):
             return None
 
         trend_5m = market_trend(candles)
-        trend_15m = market_trend(candles_15m)
+        trend_3m = market_trend(candles_3m)
 
         recent_high = max(highs[-35:-2])
         recent_low = min(lows[-35:-2])
@@ -477,7 +477,7 @@ def analyze_symbol(symbol, btc_market_bias):
             f"VOL={round(volume_ratio,2)} "
             f"MOM={round(momentum,2)} "
             f"T5={trend_5m} "
-            f"T15={trend_15m} "
+            f"T3={trend_3m} "
             f"BL={breakout_long} "
             f"NBL={near_breakout_long} "
             f"BS={breakout_short} "
@@ -530,9 +530,9 @@ def analyze_symbol(symbol, btc_market_bias):
                 score += 1
                 reasons.append("روند ۵ دقیقه صعودی است.")
 
-            if trend_15m == "BULLISH":
+            if trend_3m == "BULLISH":
                 score += 1
-                reasons.append("روند ۱۵ دقیقه صعودی است.")
+                reasons.append("روند 3 دقیقه صعودی است.")
 
             if breakout_long:
                 score += 1
@@ -592,9 +592,9 @@ def analyze_symbol(symbol, btc_market_bias):
                 score += 1
                 reasons.append("روند ۵ دقیقه نزولی است.")
 
-            if trend_15m == "BEARISH":
+            if trend_3m == "BEARISH":
                 score += 1
-                reasons.append("روند ۱۵ دقیقه نزولی است.")
+                reasons.append("روند 3 دقیقه نزولی است.")
 
             if breakout_short:
                 score += 1
