@@ -373,12 +373,12 @@ def stoch_xy_confirm(closes, side):
         return False, 0
 
     if side == "LONG":
-        strength = len([v for v in values if 50 < v < 80]) / len(values)
+        strength = len([v for v in values if v < 20]) / len(values)
         log("STOCH LONG", values[-5:], strength)
         return strength >= 0.60, round(strength * 100, 1)
 
     if side == "SHORT":
-        strength = len([v for v in values if 20 < v < 50]) / len(values)
+        strength = len([v for v in values if v > 80]) / len(values)
         log("STOCH SHORT", values[-5:], strength)
         return strength >= 0.60, round(strength * 100, 1)
 
