@@ -423,10 +423,10 @@ def candle_body_ratio(candle):
 def analyze_symbol(symbol, btc_market_bias):
     try:
         candles = get_klines(symbol, INTERVAL, 300)
-        candles_3m = get_klines(symbol, "3m", 100)
+        candles_1m = get_klines(symbol, "1m", 300)
 
-        if len(candles) < 80 or len(candles_3m) < 80:
-            log(symbol, "not enough candles", len(candles), len(candles_3m))
+        if len(candles) < 80 or len(candles_1m) < 80:
+            log(symbol, "not enough candles", len(candles), len(candles_1m))
             return None
 
         closes = [c["close"] for c in candles]
@@ -447,7 +447,7 @@ def analyze_symbol(symbol, btc_market_bias):
             return None
 
         trend_5m = market_trend(candles)
-        trend_3m = market_trend(candles_3m)
+        trend_1m = market_trend(candles_1m)
 
         recent_high = max(highs[-35:-2])
         recent_low = min(lows[-35:-2])
@@ -477,7 +477,7 @@ def analyze_symbol(symbol, btc_market_bias):
             f"VOL={round(volume_ratio,2)} "
             f"MOM={round(momentum,2)} "
             f"T5={trend_5m} "
-            f"T3={trend_3m} "
+            f"T3={trend_1m} "
             f"BL={breakout_long} "
             f"NBL={near_breakout_long} "
             f"BS={breakout_short} "
@@ -530,9 +530,9 @@ def analyze_symbol(symbol, btc_market_bias):
                 score += 1
                 reasons.append("روند ۵ دقیقه صعودی است.")
 
-            if trend_3m == "BULLISH":
+            if trend_1m == "BULLISH":
                 score += 1
-                reasons.append("روند 3 دقیقه صعودی است.")
+                reasons.append("روند 1 دقیقه صعودی است.")
 
             if breakout_long:
                 score += 1
@@ -592,9 +592,9 @@ def analyze_symbol(symbol, btc_market_bias):
                 score += 1
                 reasons.append("روند ۵ دقیقه نزولی است.")
 
-            if trend_3m == "BEARISH":
+            if trend_1m == "BEARISH":
                 score += 1
-                reasons.append("روند 3 دقیقه نزولی است.")
+                reasons.append("روند 1 دقیقه نزولی است.")
 
             if breakout_short:
                 score += 1
