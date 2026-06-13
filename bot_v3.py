@@ -295,17 +295,17 @@ def market_trend(candles):
 
     e20 = ema(closes, 20)
     e50 = ema(closes, 50)
-    e200 = ema(closes, 200)
+    e200 = ema(closes, 100)
 
-    if not all([e20, e50, e200]):
+    if not all([e20, e50, e100]):
         return "NEUTRAL"
 
     last = closes[-1]
 
-    if e20 > e50 > e200 and last > e20:
+    if e20 > e50 and last > e20 and last > e100:
         return "BULLISH"
 
-    if e20 < e50 < e200 and last < e20:
+    if e20 < e50 and last < e20 and last < e100:
         return "BEARISH"
 
     return "NEUTRAL"
@@ -421,10 +421,10 @@ def candle_body_ratio(candle):
 
 def analyze_symbol(symbol, btc_market_bias):
     try:
-        candles = get_klines(symbol, INTERVAL, 300)
-        candles_1m = get_klines(symbol, "1m", 300)
+        candles = get_klines(symbol, INTERVAL, 120)
+        candles_1m = get_klines(symbol, "1m", 120)
 
-        if len(candles) < 80 or len(candles_1m) < 80:
+        if len(candles) < 60 or len(candles_1m) < 60:
             log(symbol, "not enough candles", len(candles), len(candles_1m))
             return None
 
