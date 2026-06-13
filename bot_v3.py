@@ -295,7 +295,7 @@ def market_trend(candles):
 
     e20 = ema(closes, 20)
     e50 = ema(closes, 50)
-    e200 = ema(closes, 100)
+    e100 = ema(closes, 100)
 
     if not all([e20, e50, e100]):
         return "NEUTRAL"
