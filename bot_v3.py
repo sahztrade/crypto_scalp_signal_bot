@@ -192,8 +192,9 @@ def get_klines(symbol, interval="5m", limit=300):
         "symbol": pair,
         "type": k_type,
         "size": min(int(limit), 1000),
-    })
-
+        "time": start_time
+    }
+    data = lbank_get("/v1/kline.do", params)
     if isinstance(data, dict) and "data" in data:
         data = data["data"]
 
@@ -422,7 +423,7 @@ def candle_body_ratio(candle):
 def analyze_symbol(symbol, btc_market_bias):
     try:
         candles = get_klines(symbol, INTERVAL, 300)
-        candles_3m = get_klines(symbol, "3m", 300)
+        candles_3m = get_klines(symbol, "3m", 100)
 
         if len(candles) < 80 or len(candles_3m) < 80:
             log(symbol, "not enough candles", len(candles), len(candles_15m))
