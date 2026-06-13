@@ -477,7 +477,7 @@ def analyze_symbol(symbol, btc_market_bias):
             f"VOL={round(volume_ratio,2)} "
             f"MOM={round(momentum,2)} "
             f"T5={trend_5m} "
-            f"T3={trend_1m} "
+            f"T1={trend_1m} "
             f"BL={breakout_long} "
             f"NBL={near_breakout_long} "
             f"BS={breakout_short} "
@@ -532,7 +532,7 @@ def analyze_symbol(symbol, btc_market_bias):
 
             if trend_1m == "BULLISH":
                 score += 1
-                reasons.append("روند 1 دقیقه صعودی است.")
+                reasons.append("روند ۱ دقیقه صعودی است.")
 
             if breakout_long:
                 score += 1
@@ -594,7 +594,7 @@ def analyze_symbol(symbol, btc_market_bias):
 
             if trend_1m == "BEARISH":
                 score += 1
-                reasons.append("روند 1 دقیقه نزولی است.")
+                reasons.append("روند ۱ دقیقه نزولی است.")
 
             if breakout_short:
                 score += 1
