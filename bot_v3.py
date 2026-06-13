@@ -193,8 +193,8 @@ def get_klines(symbol, interval="5m", limit=300):
         "type": k_type,
         "size": min(int(limit), 1000),
         "time": start_time
-    }
-    data = lbank_get("/v1/kline.do", params)
+    })
+    data = lbank_get("/v1/kline.do", params
     if isinstance(data, dict) and "data" in data:
         data = data["data"]
 
