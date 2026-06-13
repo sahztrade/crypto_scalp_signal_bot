@@ -463,11 +463,11 @@ def analyze_symbol(symbol, btc_market_bias):
         body_ok = candle_body_ratio(last_candle) >= 0.35
 
         breakout_long = price > recent_high
-        near_breakout_long = price >= recent_high * 0.999
+        near_breakout_long = price >= recent_high * 0.997
         confirm_long = last_candle["close"] > last_candle["open"] and body_ok
 
         breakout_short = price < recent_low
-        near_breakout_short = price <= recent_low * 1.001
+        near_breakout_short = price <= recent_low * 1.003
         confirm_short = last_candle["close"] < last_candle["open"] and body_ok
 
         log(
