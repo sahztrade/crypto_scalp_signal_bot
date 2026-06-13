@@ -24,8 +24,8 @@ SYMBOLS = [
 INTERVAL = os.getenv("INTERVAL", "5m")
 CHECK_MINUTES = int(os.getenv("CHECK_MINUTES", "2"))
 
-MIN_SCORE = 5
-MIN_VOLUME_RATIO = 1.5
+MIN_SCORE = 7
+MIN_VOLUME_RATIO = 2
 MAX_LONG_RSI = 68
 MIN_SHORT_RSI = 40
 
@@ -488,8 +488,7 @@ def analyze_symbol(symbol, btc_market_bias):
             and trend_1m == "BULLISH"
             and (
                 (breakout_long and confirm_long) or
-                (near_breakout_long and momentum > 0 and r >= 55) or
-                (momentum > 0.08 and r >= 55)
+                (near_breakout_long and momentum > 0 and r >= 55)
             )
         )
 
@@ -498,8 +497,7 @@ def analyze_symbol(symbol, btc_market_bias):
             and trend_1m == "BEARISH"
             and (
                 (breakout_short and confirm_short) or
-                (near_breakout_short and momentum < 0 and r <= 45) or
-                (momentum < -0.08 and r <= 45)
+                (near_breakout_short and momentum < 0 and r <= 45)
             )
         )
 
