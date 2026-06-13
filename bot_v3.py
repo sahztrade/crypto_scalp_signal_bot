@@ -485,15 +485,23 @@ def analyze_symbol(symbol, btc_market_bias):
         )
 
         long_candidate = (
-            (breakout_long and confirm_long) or
-            (near_breakout_long and momentum > 0 and r >= 50) or
-            (trend_5m == "BULLISH" and momentum > 0.05 and r >= 52)
+            trend_5m == "BULLISH"
+            and trend_1m == "BULLISH"
+            and (
+                (breakout_long and confirm_long) or
+                (near_breakout_long and momentum > 0 and r >= 55) or
+                (momentum > 0.08 and r >= 55)
+            )
         )
 
         short_candidate = (
-            (breakout_short and confirm_short) or
-            (near_breakout_short and momentum < 0 and r <= 50) or
-            (trend_5m == "BEARISH" and momentum < -0.05 and r <= 48)
+            trend_5m == "BEARISH"
+            and trend_1m == "BEARISH"
+            and (
+                (breakout_short and confirm_short) or
+                (near_breakout_short and momentum < 0 and r <= 45) or
+                (momentum < -0.08 and r <= 45)
+            )
         )
 
         if long_candidate and not short_candidate:
