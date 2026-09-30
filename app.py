@@ -1,0 +1,1 @@
+from bot_v3 import app
