@@ -1,0 +1,8 @@
+{
+  "app": "ctypto-scalp-bot-v2",
+  "port": 80,
+  "build": {
+    "location": "iran"
+  },
+  "disks": []
+}
